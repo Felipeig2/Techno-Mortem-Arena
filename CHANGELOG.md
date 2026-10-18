@@ -7,12 +7,6 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [No publicado]
 
-### Añadido
-
-- `pantallas.PantallaArena`: cartel de controles al iniciar la ronda. Muestra los mandos del
-  Jugador 1 arriba a la izquierda y los del Jugador 2 arriba a la derecha, y se desvanece a los
-  pocos segundos para que nadie arranque perdido sin tapar la arena.
-
 ### Por hacer
 
 - Estocadas, bloqueos por coincidencia de altura y desarme.
@@ -22,6 +16,39 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Más arenas y selección de mapa aleatorio por ronda.
 - Multijugador en red local: creación de partida (host) y búsqueda / unión (cliente).
 - Ajustes de audio y controles, y personalización visual del personaje.
+
+## [0.4.0] - 2026-10-18
+
+Bloques interactivos, editor de niveles, pausa y cartel de controles al empezar la ronda.
+
+### Añadido
+
+- `pantallas.PantallaArena`: cartel de controles al iniciar la ronda. Muestra los mandos del
+  Jugador 1 arriba a la izquierda y los del Jugador 2 arriba a la derecha, y se desvanece a los
+  pocos segundos para que nadie arranque perdido sin tapar la arena.
+- Bloques interactivos: `mundo.Bloque` como base, con ganchos para aterrizar, rozar y velocidad
+  horizontal, y los tipos `mundo.Trampolin` (rebota), `mundo.CintaTransportadora` (empuja hacia
+  la izquierda o la derecha) y `mundo.Pincho` (mata al tocarlo).
+- `pantallas.PantallaEditor`: editor de niveles con grilla, pincel de 1x1 a 4x4, spawns de cada
+  jugador, guardado y carga de mapas por nombre, y prueba del mapa (R vuelve al editor).
+- `niveles.MapaGuardado` y `niveles.RepositorioMapas`: guardado y lectura de mapas con nombre en
+  un único archivo.
+- `pantallas.Ui`: interfaz común (rectángulos, botones y texto) reutilizada por los menús, la
+  pausa y el editor.
+- Pausa en partida con ESC: seguir, volver al menú principal, a la selección de mapa o salir.
+- `TechnoMortemArena`: la tecla F11 alterna la pantalla completa.
+
+### Cambiado
+
+- `mundo.Arena`: la arena se describe con una grilla de 90 columnas y los bloques dejan de ser
+  solo piso. Se agregan las fábricas `conPlataformas()`, `conTrampolin()` y `conCintasYPinchos()`.
+- `entidades.Jugador`: aterrizaje y roce con los bloques, apilado entre jugadores (el de arriba
+  hereda la velocidad del de abajo) y empuje por golpe como distancia fija.
+- `entidades.AlturaEspada`: los desplazamientos de guardia se escalan con `Arena.ESCALA`.
+- `pantallas.PantallaMenu` y `pantallas.PantallaSeleccionMapa`: usan la interfaz común `Ui`; el
+  menú principal suma el botón "Editor de niveles".
+- Lanzador de escritorio: la ventana se abre a la resolución del monitor (hasta 1920x1080) en vez
+  de 800x600.
 
 ## [0.3.0] - 2026-10-06
 
@@ -121,7 +148,8 @@ Primera pre-entrega: configuración inicial del proyecto y del repositorio.
 - Título de la ventana del juego: de `TechnoMortemArena` (nombre técnico del módulo) a
   `Techno Mortem Arena`.
 
-[No publicado]: https://github.com/joaquinmuzzi/Techno-Mortem-Arena/compare/v0.3.0...HEAD
+[No publicado]: https://github.com/joaquinmuzzi/Techno-Mortem-Arena/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/joaquinmuzzi/Techno-Mortem-Arena/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/joaquinmuzzi/Techno-Mortem-Arena/compare/v0.2.2...v0.3.0
 [0.2.2]: https://github.com/joaquinmuzzi/Techno-Mortem-Arena/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/joaquinmuzzi/Techno-Mortem-Arena/compare/v0.2.0...v0.2.1
