@@ -8,6 +8,7 @@ import com.badlogic.gdx.ScreenAdapter;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector2;
 import com.badlogic.gdx.utils.ScreenUtils;
@@ -41,6 +42,34 @@ public class PantallaArena extends ScreenAdapter {
     private static final Color TINTE_DOS = Jugador.TINTE_DOS;
     private static final Color VELO_PAUSA = new Color(0f, 0f, 0f, 0.6f);
 
+    // Cartel de controles que aparece al empezar la ronda. Se muestran los del Jugador 1 arriba a
+    // la izquierda y los del Jugador 2 arriba a la derecha, para que nadie arranque perdido.
+    /** Segundos que los controles quedan totalmente visibles antes de empezar a desvanecerse. */
+    private static final float DURACION_AYUDA = 7f;
+    /** Segundos que tarda el fundido final, al terminar {@link #DURACION_AYUDA}. */
+    private static final float DESVANECIDO_AYUDA = 1.5f;
+    private static final float MARGEN_AYUDA = 18f;
+    private static final float RELLENO_AYUDA = 12f;
+    private static final float SEPARACION_TITULO_AYUDA = 26f;
+    private static final float INTERLINEA_AYUDA = 22f;
+    private static final float ESCALA_TITULO_AYUDA = 1.4f;
+    private static final float ESCALA_LINEA_AYUDA = 1.15f;
+    private static final Color FONDO_AYUDA = new Color(0f, 0f, 0f, 0.55f);
+    private static final String TITULO_AYUDA_UNO = "JUGADOR 1";
+    private static final String[] LINEAS_AYUDA_UNO = {
+        "MOVER: A / D",
+        "SALTAR: W",
+        "GUARDIA: E / Q",
+        "ESTOCADA: F",
+    };
+    private static final String TITULO_AYUDA_DOS = "JUGADOR 2";
+    private static final String[] LINEAS_AYUDA_DOS = {
+        "MOVER: FLECHA IZQ / DER",
+        "SALTAR: FLECHA ARRIBA",
+        "GUARDIA: O / L",
+        "ESTOCADA: K",
+    };
+
     private final RecursosGraficos recursos;
     private final Arena arena;
     private final Supplier<Screen> alReiniciar;
@@ -52,6 +81,11 @@ public class PantallaArena extends ScreenAdapter {
     private final Jugador jugadorDos;
 
     private boolean pausado;
+    /** Tiempo (segundos de juego) transcurrido desde que arranco la ronda, para el cartel de ayuda. */
+    private float tiempoAyuda;
+    /** Color y rectangulo de trabajo: evitan crear objetos nuevos en cada fotograma del cartel. */
+    private final Color colorAux = new Color();
+    private final Rectangle rectAux = new Rectangle();
     private final Rectangle botonSeguir = new Rectangle(330f, 320f, 300f, 50f);
     private final Rectangle botonMenu = new Rectangle(330f, 250f, 300f, 50f);
     private final Rectangle botonSeleccion = new Rectangle(330f, 180f, 300f, 50f);
@@ -109,6 +143,9 @@ public class PantallaArena extends ScreenAdapter {
         // jugadores se teletransporten y atraviesen el piso. Acotarlo degrada la simulacion en lugar
         // de romperla.
         float paso = Math.min(delta, DELTA_MAXIMO);
+        // El reloj de la ayuda corre con la simulacion, no con la pausa: mientras el juego esta
+        // pausado no se llama a actualizar(), asi el cartel se queda quieto y no se pierde.
+        tiempoAyuda += paso;
         jugadorUno.actualizar(paso, arena, jugadorDos);
         jugadorDos.actualizar(paso, arena, jugadorUno);
     }
@@ -158,9 +195,88 @@ public class PantallaArena extends ScreenAdapter {
         jugadorDos.dibujar(batch, recursos);
         batch.end();
 
+        dibujarAyudaControles();
+
         if (pausado) {
             dibujarPausa();
         }
+    }
+
+    /**
+     * Dibuja el cartel de controles de los dos jugadores mientras no se haya terminado de desvanecer.
+     *
+     * <p>Se dibuja con el viewport de interfaz ({@link #viewportUi}) para que las esquinas queden
+     * ancladas a la pantalla y no se muevan con la camara de la arena.
+     */
+    private void dibujarAyudaControles() {
+        float alfa = alfaAyuda();
+        if (alfa <= 0f) {
+            return;
+        }
+        viewportUi.apply();
+        batch.setProjectionMatrix(viewportUi.getCamera().combined);
+        batch.begin();
+        dibujarPanelAyuda(TITULO_AYUDA_UNO, LINEAS_AYUDA_UNO, TINTE_UNO, false, alfa);
+        dibujarPanelAyuda(TITULO_AYUDA_DOS, LINEAS_AYUDA_DOS, TINTE_DOS, true, alfa);
+        batch.end();
+    }
+
+    /**
+     * Opacidad del cartel: entero mientras dura {@link #DURACION_AYUDA}, y despues baja de 1 a 0 en
+     * {@link #DESVANECIDO_AYUDA} segundos. Devuelve 0 cuando ya no hay que dibujarlo.
+     */
+    private float alfaAyuda() {
+        if (tiempoAyuda < DURACION_AYUDA) {
+            return 1f;
+        }
+        float restante = DURACION_AYUDA + DESVANECIDO_AYUDA - tiempoAyuda;
+        if (restante <= 0f) {
+            return 0f;
+        }
+        return MathUtils.clamp(restante / DESVANECIDO_AYUDA, 0f, 1f);
+    }
+
+    /**
+     * Dibuja un panel de controles: fondo semitransparente, titulo con el color del jugador y una
+     * linea por accion. El ancho se calcula segun el texto mas largo para que el fondo quede ajustado.
+     *
+     * @param aLaDerecha ancla el panel contra el borde derecho de la pantalla (Jugador 2); si es
+     *                   {@code false}, lo ancla contra el izquierdo (Jugador 1)
+     * @param alfa       opacidad global, para el fundido de salida
+     */
+    private void dibujarPanelAyuda(String titulo, String[] lineas, Color colorTitulo,
+                                   boolean aLaDerecha, float alfa) {
+        float anchoContenido = ui.anchoTexto(titulo, ESCALA_TITULO_AYUDA);
+        for (String linea : lineas) {
+            anchoContenido = Math.max(anchoContenido, ui.anchoTexto(linea, ESCALA_LINEA_AYUDA));
+        }
+        float anchoPanel = anchoContenido + 2f * RELLENO_AYUDA;
+        float altoPanel = 2f * RELLENO_AYUDA + SEPARACION_TITULO_AYUDA + lineas.length * INTERLINEA_AYUDA;
+        float x = aLaDerecha ? ANCHO_UI - MARGEN_AYUDA - anchoPanel : MARGEN_AYUDA;
+        float arriba = ALTO_UI - MARGEN_AYUDA;
+        float abajo = arriba - altoPanel;
+
+        colorAux.set(FONDO_AYUDA);
+        colorAux.a *= alfa;
+        rectAux.set(x, abajo, anchoPanel, altoPanel);
+        ui.rectangulo(batch, rectAux, colorAux);
+
+        ui.texto(batch, titulo, x + RELLENO_AYUDA, arriba - RELLENO_AYUDA,
+            ESCALA_TITULO_AYUDA, conAlfa(colorTitulo, alfa));
+
+        float yLinea = arriba - RELLENO_AYUDA - SEPARACION_TITULO_AYUDA;
+        for (String linea : lineas) {
+            ui.texto(batch, linea, x + RELLENO_AYUDA, yLinea, ESCALA_LINEA_AYUDA,
+                conAlfa(Color.WHITE, alfa));
+            yLinea -= INTERLINEA_AYUDA;
+        }
+    }
+
+    /** Copia {@code base} en {@link #colorAux} con su opacidad multiplicada por {@code alfa}. */
+    private Color conAlfa(Color base, float alfa) {
+        colorAux.set(base);
+        colorAux.a *= alfa;
+        return colorAux;
     }
 
     private void dibujarPausa() {

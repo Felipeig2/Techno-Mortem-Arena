@@ -7,6 +7,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [No publicado]
 
+### Añadido
+
+- `pantallas.PantallaArena`: cartel de controles al iniciar la ronda. Muestra los mandos del
+  Jugador 1 arriba a la izquierda y los del Jugador 2 arriba a la derecha, y se desvanece a los
+  pocos segundos para que nadie arranque perdido sin tapar la arena.
+
 ### Por hacer
 
 - Estocadas, bloqueos por coincidencia de altura y desarme.
