@@ -17,6 +17,26 @@ Este documento explica cómo subir cambios al repositorio, qué formato usar en 
 3. Si el cambio afecta al comportamiento del juego, agregá una línea en `CHANGELOG.md` en la sección
    `[No publicado]`.
 
+## Cuándo usar pull request y cuándo commit directo
+
+**Usá pull request (rama + PR) cuando:**
+
+- Cambia la lógica compartida que afecta a todos: física, colisiones, pantallas, formatos de archivo
+  como `niveles/mapas.txt`.
+- Es una funcionalidad grande o de varios archivos.
+- Otra persona está trabajando en la misma área y necesita ver los cambios antes.
+- Querés que alguien pruebe o apruebe el cambio antes de que llegue a `main`.
+- Es un cambio que se entrega al profesor y conviene dejar registro de la revisión.
+
+**Podés hacer commit directo a `main` cuando:**
+
+- Es un arreglo chico y claro, como un typo, un texto o un valor de configuración.
+- Es documentación sin lógica, como `README.md` o `CHANGELOG.md`.
+- Estás solo en el área, el cambio es acotado y lo probaste.
+- Es un cambio de herramientas de build que no toca el juego.
+
+Ante la duda, usá pull request.
+
 ### Cómo abrir un pull request
 
 1. Creá una rama a partir de `main`: `git checkout -b feature/nombre-corto`.
