@@ -65,14 +65,27 @@ La propuesta completa y detallada está en la Wiki del proyecto (ver más abajo)
 
 ```
 core/src/main/java/com/et35/technomortemarena/
-├── TechnoMortemArena.java     Aplicación (Game): carga assets y abre la pantalla
+├── TechnoMortemArena.java     Aplicación (Game): carga assets, abre el menú y alterna F11
 ├── RecursosGraficos.java      Carga y liberación centralizada de texturas
-├── mundo/Arena.java           Escenario cerrado: medidas y límites laterales
+├── mundo/
+│   ├── Arena.java             Escenario cerrado en grilla y fábricas de mapas
+│   ├── Bloque.java            Base de los bloques interactivos
+│   ├── Trampolin.java         Bloque que rebota
+│   ├── CintaTransportadora.java  Bloque que empuja hacia un lado
+│   └── Pincho.java            Bloque letal al tocarlo
 ├── entidades/
-│   ├── Jugador.java           Entidad controlable: física, salto y guardia
+│   ├── Jugador.java           Entidad controlable: física, salto, guardia y apilado
 │   └── AlturaEspada.java      Las tres alturas de guardia (cadera, pecho, cabeza)
 ├── entrada/Controles.java     Mapeo de teclas de cada duelista
-└── pantallas/PantallaArena.java  Ronda de duelo: bucle de actualización y dibujo
+├── niveles/
+│   ├── MapaGuardado.java      Mapa con nombre creado en el editor
+│   └── RepositorioMapas.java  Guardado y lectura de mapas
+└── pantallas/
+    ├── PantallaMenu.java          Menú principal (Jugar / Editor de niveles / Salir)
+    ├── PantallaSeleccionMapa.java Elección del mapa
+    ├── PantallaArena.java         Ronda de duelo, cartel de controles y pausa
+    ├── PantallaEditor.java        Editor de niveles
+    └── Ui.java                    Interfaz común (botones, texto, rectángulos)
 ```
 
 ## Controles
@@ -84,8 +97,12 @@ core/src/main/java/com/et35/technomortemarena/
 | Saltar | `W` | `↑` |
 | Subir guardia | `E` | `O` |
 | Bajar guardia | `Q` | `L` |
+| Estocada | `F` | `K` |
 
-La guardia tiene tres alturas —cadera, pecho y cabeza— y arranca en pecho.
+La guardia tiene tres alturas —cadera, pecho y cabeza— y arranca en pecho. Al iniciar cada ronda se
+muestra un cartel con los controles de cada jugador.
+
+Controles generales: `ESC` pausa la partida y `F11` alterna la pantalla completa.
 
 ## Propuesta del proyecto (Wiki)
 
@@ -170,7 +187,7 @@ Las tareas específicas de un módulo se invocan con el prefijo del módulo: por
 
 ## Estado actual del proyecto
 
-**Base jugable local: dos duelistas controlables en una arena cerrada.**
+**Versión 0.4.0: duelo local con bloques interactivos y editor de niveles.**
 
 - [x] Proyecto libGDX generado con gdx-liftoff (módulos `core` + `lwjgl3`).
 - [x] Compilable y ejecutable en escritorio.
@@ -180,13 +197,18 @@ Las tareas específicas de un módulo se invocan con el prefijo del módulo: por
 - [x] Arena cerrada con piso y límites laterales.
 - [x] Dos entidades controlables por teclado, con gravedad y salto.
 - [x] Guardia en tres alturas (cadera, pecho, cabeza).
-- [ ] Estocadas, bloqueos por altura y desarme.
-- [ ] Lanzamiento de espada y modo cuerpo a cuerpo.
+- [x] Menú principal y selección manual de mapa.
+- [x] Bloques interactivos: piso, trampolín, cinta transportadora y pincho.
+- [x] Editor de niveles (grilla, pincel, spawns, guardar/cargar, probar mapa).
+- [x] Pausa con ESC, apilado entre jugadores y cartel de controles.
+- [x] Ventana a resolución nativa y pantalla completa con F11.
+- [ ] Desarme, lanzamiento de espada y modo cuerpo a cuerpo.
 - [ ] Rodado para esquivar.
 - [ ] Estructura de partida (mejor de 5 rondas, temporizador, muerte súbita).
-- [ ] Varias arenas y selección de mapa.
+- [ ] Selección de mapa aleatorio por ronda.
 - [ ] Multijugador en red local (host / cliente).
-- [ ] Menú principal, ajustes y personalización del personaje.
+- [ ] Pantalla de ajustes (audio y controles) y personalización del personaje.
+- [ ] Animaciones del personaje.
 
 ### Assets
 
