@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.et35.technomortemarena.entidades.EstadoJugador;
 import com.et35.technomortemarena.mundo.Arena;
+import com.et35.technomortemarena.partida.EstadoPartida;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import org.junit.jupiter.api.Test;
@@ -124,6 +125,51 @@ class CodecsTest {
         intacto.x = 1f;
         assertFalse(CodecEstado.leer(buffer, intacto));
         assertEquals(1f, intacto.x, "un estado rechazado no debe tocar el destino");
+    }
+
+    @Test
+    void elEstadoDeLaPartidaSobreviveAlViaje() {
+        EstadoPartida partida = new EstadoPartida();
+        partida.fase = 2;
+        partida.numeroRonda = 5;
+        partida.rondasGanadasUno = 3;
+        partida.rondasGanadasDos = 1;
+        partida.ganadorDeLaRonda = -1;
+        ByteBuffer buffer = ByteBuffer.allocate(16);
+        CodecEstado.escribir(buffer, partida);
+        assertEquals(CodecEstado.BYTES_PARTIDA, buffer.position());
+        buffer.flip();
+
+        EstadoPartida leida = new EstadoPartida();
+        assertTrue(CodecEstado.leer(buffer, leida));
+
+        assertEquals(2, leida.fase);
+        assertEquals(5, leida.numeroRonda);
+        assertEquals(3, leida.rondasGanadasUno);
+        assertEquals(1, leida.rondasGanadasDos);
+        assertEquals(-1, leida.ganadorDeLaRonda);
+    }
+
+    @Test
+    void unEstadoDePartidaConValoresAbsurdosSeRechaza() {
+        int[][] malos = {
+            {7, 1, 0, 0, 0},   // una etapa que no existe
+            {0, 0, 0, 0, 0},   // ronda 0
+            {0, 1, 9, 0, 0},   // mas rondas ganadas de las que alcanzan para ganar
+            {0, 1, 0, 0, 5},   // un ganador que no es 0, 1 ni -1
+        };
+        for (int[] m : malos) {
+            ByteBuffer buffer = ByteBuffer.allocate(8);
+            for (int valor : m) {
+                buffer.put((byte) valor);
+            }
+            buffer.flip();
+            EstadoPartida intacta = new EstadoPartida();
+            intacta.numeroRonda = 42;
+            assertFalse(CodecEstado.leer(buffer, intacta));
+            assertEquals(42, intacta.numeroRonda, "un estado rechazado no debe tocar el destino");
+        }
+        assertFalse(CodecEstado.leer(ByteBuffer.allocate(2), new EstadoPartida()));
     }
 
     @Test

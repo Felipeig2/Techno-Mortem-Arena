@@ -9,6 +9,27 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Añadido
 
+- Estructura de partida al mejor de 5 rondas (por PR de @juarezmateo, integrada con el combate con mouse
+  y la red). `partida.MarcadorPartida` lleva el conteo de rondas ganadas y termina la partida cuando
+  alguien llega a 3; `partida.RondasPartida` es la lógica pura de la ronda, la espera entre rondas y la
+  victoria. Cuando un duelista cae se anota la ronda, hay una pausa breve con el resultado y la siguiente
+  arranca con los dos de vuelta en sus spawns. En empate (cayeron los dos en el mismo fotograma) la ronda
+  se vuelve a jugar sin sumar. Se juega en Multijugador: el anfitrión lleva la cuenta y el estado de la
+  partida (`partida.EstadoPartida`) viaja al cliente junto con el de los jugadores.
+- Cartel de victoria con el ganador de la partida, el marcador final y botones de revancha (la pide el
+  anfitrión), salir de la sala o volver al menú principal.
+- HUD durante la ronda: las vidas restantes de cada duelista (del color de cada uno, apagadas cuando se
+  pierden) a los costados del centro, y arriba al centro el número de ronda y el marcador. Las vidas van
+  al lado del centro y no en las esquinas para no pisar el cartel de controles.
+- `pantallas.PantallaSeleccionMapa`: sección "MIS MAPAS" con los mapas guardados por el editor, que se
+  juegan igual que los predefinidos (también al crear una sala). La lista se desplaza con la rueda del
+  mouse cuando hay más mapas que filas en pantalla.
+- Pausa con botón "REINICIAR RONDA" (modo de prueba y anfitrión): reinicia la ronda actual sin tocar el
+  marcador de la partida.
+- `entidades.Jugador`: `reiniciar()` para empezar una ronda nueva en el mismo mapa (spawn, vidas completas
+  y sin efectos pendientes), y los accesores `isVivo()` y `getVida()` para el HUD y el fin de ronda.
+- Tests JUnit 5: `MarcadorPartidaTest`, `RondasPartidaTest`, `JugadorTest` y los del estado de la partida
+  en el protocolo.
 - Combate apuntado con el mouse. La espada gira hacia el cursor desde el hombro y el clic izquierdo
   lanza una estocada (la hoja avanza un instante, con una recarga corta). `entidades.Hoja` es la hoja
   como caja rotada, con choque exacto por el teorema del eje de separación contra el cuerpo y contra
@@ -43,6 +64,12 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ### Cambiado
 
+- Protocolo de red versión 3: el estado que manda el anfitrión incluye el de la partida (etapa, ronda,
+  marcador y ganador de la ronda). No es compatible con la versión 2.
+- `pantallas.PantallaArena`: corrige el dibujado con recursos ya liberados al salir de la pausa hacia el
+  menú principal o la selección de mapa (antes, el mismo fotograma seguía dibujando con el `SpriteBatch`
+  recién disposeado). Al morir, la vida del duelista queda en cero, para que el HUD muestre el estado real.
+  ESC solo pausa mientras la ronda está en juego.
 - Protocolo de red versión 2: la entrada lleva el punto del mouse (dos enteros de 16 bits) y un
   contador de estocadas, y el estado lleva el ángulo y la extensión de la espada. No es compatible
   con la versión 1: las dos instancias tienen que ser de la misma versión del juego.
@@ -64,7 +91,7 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 - Estocadas, bloqueos por coincidencia de altura y desarme.
 - Lanzamiento de espada y modo cuerpo a cuerpo (puños y patadas).
 - Rodado para esquivar ataques.
-- Estructura de partida al mejor de 5 rondas, con temporizador y muerte súbita.
+- Temporizador por ronda y muerte súbita, dentro de la partida al mejor de 5 ya implementada.
 - Más arenas y selección de mapa aleatorio por ronda.
 - Multijugador por internet (NAT, relay o servidor dedicado), descubrimiento de salas en la red local
   y más de dos jugadores por sala.

@@ -307,6 +307,6 @@ class JugadorCombateTest {
 
         assertEquals(angulo, a.getAngulo(), 0.0001f);
         assertEquals(0f, a.getExtension());
-        assertFalse(a.estaVivo());
+        assertFalse(a.isVivo());
     }
 }

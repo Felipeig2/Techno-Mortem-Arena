@@ -10,6 +10,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.et35.technomortemarena.entidades.EstadoJugador;
 import com.et35.technomortemarena.entrada.EntradaJugador;
 import com.et35.technomortemarena.mundo.Arena;
+import com.et35.technomortemarena.partida.EstadoPartida;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -144,12 +145,24 @@ class SalaLoopbackTest {
         remoto.vida = 2;
         remoto.vivo = true;
 
-        servidor.enviarEstado(anfitrion, remoto);
+        EstadoPartida partida = new EstadoPartida();
+        partida.fase = 1;
+        partida.numeroRonda = 3;
+        partida.rondasGanadasUno = 2;
+        partida.rondasGanadasDos = 1;
+        partida.ganadorDeLaRonda = 0;
+
+        servidor.enviarEstado(anfitrion, remoto, partida);
         girarHasta(cliente::hayEstado);
 
         assertEquals(321.5f, cliente.getEstado(0).x);
         assertEquals(99f, cliente.getEstado(1).x);
         assertEquals(2, cliente.getEstado(1).vida);
+        assertEquals(1, cliente.getEstadoPartida().fase);
+        assertEquals(3, cliente.getEstadoPartida().numeroRonda);
+        assertEquals(2, cliente.getEstadoPartida().rondasGanadasUno);
+        assertEquals(1, cliente.getEstadoPartida().rondasGanadasDos);
+        assertEquals(0, cliente.getEstadoPartida().ganadorDeLaRonda);
     }
 
     @Test
@@ -160,10 +173,11 @@ class SalaLoopbackTest {
         EstadoJugador a = new EstadoJugador();
         a.vida = 1;
 
+        EstadoPartida partida = new EstadoPartida();
         a.x = 1f;
-        servidor.enviarEstado(a, a);
+        servidor.enviarEstado(a, a, partida);
         a.x = 2f;
-        servidor.enviarEstado(a, a);
+        servidor.enviarEstado(a, a, partida);
         girarHasta(() -> cliente.hayEstado() && cliente.getEstado(0).x == 2f);
 
         assertEquals(2f, cliente.getEstado(0).x);

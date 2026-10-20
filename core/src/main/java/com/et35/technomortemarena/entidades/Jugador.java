@@ -64,6 +64,8 @@ public class Jugador {
     private final FuenteEntrada fuente;
     private final EntradaJugador entrada = new EntradaJugador();
     private final Color tinte;
+    /** Vidas con las que arranca cada ronda: ver {@link #reiniciar}. */
+    private final int vidaInicial;
     private final Vector2 posicion = new Vector2();
     private final Vector2 velocidad = new Vector2();
     private int vida;
@@ -131,9 +133,48 @@ public class Jugador {
         this.tinte = tinte;
         this.mirandoDerecha = mirandoDerecha;
         this.posicion.set(x, y);
+        this.vidaInicial = vida;
         this.vida = vida;
         this.angulo = mirandoDerecha ? 0f : MathUtils.PI;
         this.anguloPrevio = angulo;
+        actualizarHoja();
+    }
+
+    /**
+     * Vuelve al estado inicial para empezar una ronda nueva en el mismo mapa: posicion de spawn,
+     * vida completa, la espada mirando hacia adelante y sin efectos pendientes (flash, empuje,
+     * estocada). Los contadores de golpes y aterrizajes no se tocan: solo suben, y los clientes de
+     * una partida en red los comparan para disparar los sonidos.
+     *
+     * <p>La partida al mejor de 5 resetea a los duelistas en vez de reconstruir la pantalla, asi
+     * el marcador y el numero de ronda sobreviven de un duelo al siguiente.
+     *
+     * @param x posicion horizontal del spawn, en pixeles desde el borde izquierdo de la arena
+     * @param y posicion vertical del spawn, en pixeles desde el borde inferior de la arena
+     * @param mirandoDerecha hacia donde apunta la espada al empezar la ronda
+     */
+    public void reiniciar(float x, float y, boolean mirandoDerecha) {
+        posicion.set(x, y);
+        velocidad.setZero();
+        vida = vidaInicial;
+        this.mirandoDerecha = mirandoDerecha;
+        enElPiso = false;
+        vivo = true;
+        angulo = mirandoDerecha ? 0f : MathUtils.PI;
+        anguloPrevio = angulo;
+        tiempoEstocada = 0f;
+        recargaEstocada = 0f;
+        extension = 0f;
+        entradaIzquierda = false;
+        entradaDerecha = false;
+        corriendo = false;
+        enVuelo = false;
+        acabaDeAterrizar = false;
+        acabaDeGolpear = false;
+        bloqueBajoPies = null;
+        montadoSobreOponente = false;
+        tiempoRestanteFlash = 0f;
+        empujeX = 0f;
         actualizarHoja();
     }
 
@@ -513,7 +554,8 @@ public class Jugador {
         recibirImpacto(atacante);
     }
 
-    public boolean estaVivo() {
+    /** Verdadero mientras el duelista siga en pie: al morir empieza la cuenta de la ronda. */
+    public boolean isVivo() {
         return vivo;
     }
 
@@ -527,6 +569,7 @@ public class Jugador {
     		vida -= 1;
     	}
     	else {
+    		vida = 0;
     		vivo = false;
     	}
     }

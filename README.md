@@ -90,14 +90,18 @@ core/src/main/java/com/et35/technomortemarena/
 │   ├── EntradaRemota.java     Entrada de un jugador que llega por la red
 │   ├── CodecMapa.java         Filas del mapa a bytes (con repeticiones comprimidas)
 │   └── CodecEstado.java       Estado de un jugador a bytes
+├── partida/
+│   ├── MarcadorPartida.java   Marcador al mejor de 5 rondas y ganador de la partida
+│   ├── RondasPartida.java     Ronda, espera entre rondas y victoria (lógica pura)
+│   └── EstadoPartida.java     Estado de la partida que viaja por la red
 ├── niveles/
 │   ├── MapaGuardado.java      Mapa con nombre creado en el editor
 │   └── RepositorioMapas.java  Guardado y lectura de mapas
 └── pantallas/
     ├── PantallaMenu.java          Menú principal (Modo de prueba / Multijugador / Editor de niveles / Salir)
     ├── PantallaMultijugador.java  Crear una sala o unirse a la de otro
-    ├── PantallaSeleccionMapa.java Elección del mapa
-    ├── PantallaArena.java         Ronda (modo de prueba, anfitrión o cliente), controles y pausa
+    ├── PantallaSeleccionMapa.java Elección del mapa: predefinidos y "Mis mapas" del editor
+    ├── PantallaArena.java         Modo de prueba, anfitrión o cliente: rondas, HUD, marcador y pausa
     ├── PantallaEditor.java        Editor de niveles
     └── Ui.java                    Interfaz común (botones, texto, rectángulos)
 ```
@@ -138,6 +142,11 @@ El campo de texto acepta `ip:puerto`. Para jugar entre dos computadoras de la mi
 anfitrión comparte su IP local y el puerto (7777 por defecto; es el mismo que se escribe al crear
 la sala). El firewall de Windows puede preguntar si permite a Java recibir conexiones: para probar
 en la misma máquina no hace falta permitirlo.
+
+La partida es **al mejor de 5 rondas** (gana quien llega a 3): cuando alguien cae se anota la ronda,
+hay una pausa breve con el resultado y la siguiente arranca con los dos de vuelta en sus lugares. En
+empate la ronda se repite sin sumar. El HUD muestra las vidas de cada uno y el marcador, y al final
+aparece el cartel de victoria con la revancha (la pide el anfitrión).
 
 El anfitrión simula todo el juego y le manda el estado al cliente, que solo manda sus teclas y
 dibuja lo que recibe. `R` reinicia la ronda solo en el anfitrión, y en red `ESC` abre el menú
@@ -247,7 +256,8 @@ Las tareas específicas de un módulo se invocan con el prefijo del módulo: por
 - [x] Ventana a resolución nativa y pantalla completa con F11.
 - [ ] Desarme, lanzamiento de espada y modo cuerpo a cuerpo.
 - [ ] Rodado para esquivar.
-- [ ] Estructura de partida (mejor de 5 rondas, temporizador, muerte súbita).
+- [x] Estructura de partida al mejor de 5 rondas, con HUD de vidas y marcador (en Multijugador).
+- [ ] Temporizador por ronda y muerte súbita.
 - [ ] Selección de mapa aleatorio por ronda.
 - [x] Multijugador por UDP en red local: crear sala y unirse (2 jugadores, una instancia por jugador).
 - [ ] Multijugador por internet (NAT, relay o servidor dedicado) y descubrimiento de salas.

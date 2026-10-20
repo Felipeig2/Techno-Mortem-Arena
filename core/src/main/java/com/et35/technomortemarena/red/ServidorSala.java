@@ -3,6 +3,7 @@ package com.et35.technomortemarena.red;
 import com.et35.technomortemarena.entidades.EstadoJugador;
 import com.et35.technomortemarena.entrada.FuenteEntrada;
 import com.et35.technomortemarena.mundo.Arena;
+import com.et35.technomortemarena.partida.EstadoPartida;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -233,10 +234,10 @@ public final class ServidorSala implements AutoCloseable {
     }
 
     /**
-     * Le manda al cliente el estado de la partida: el del anfitrion (indice 0) y el de el (indice 1).
-     * No hace nada si el cliente todavia no esta listo.
+     * Le manda al cliente el estado de la partida: el del anfitrion (indice 0), el de el (indice 1) y
+     * como va el marcador. No hace nada si el cliente todavia no esta listo.
      */
-    public void enviarEstado(EstadoJugador anfitrion, EstadoJugador remoto) {
+    public void enviarEstado(EstadoJugador anfitrion, EstadoJugador remoto, EstadoPartida partida) {
         if (cliente == null || !listo) {
             return;
         }
@@ -244,6 +245,7 @@ public final class ServidorSala implements AutoCloseable {
         paquete.putInt(++secuenciaEstado);
         CodecEstado.escribir(paquete, anfitrion);
         CodecEstado.escribir(paquete, remoto);
+        CodecEstado.escribir(paquete, partida);
         Protocolo.enviar(canal, paquete, cliente);
     }
 

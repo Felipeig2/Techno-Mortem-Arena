@@ -3,6 +3,7 @@ package com.et35.technomortemarena.red;
 import com.et35.technomortemarena.entidades.EstadoJugador;
 import com.et35.technomortemarena.entrada.EntradaJugador;
 import com.et35.technomortemarena.mundo.Arena;
+import com.et35.technomortemarena.partida.EstadoPartida;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
@@ -39,6 +40,7 @@ public final class ClienteSala implements AutoCloseable {
     private String[] filas;
 
     private final EstadoJugador[] estados = {new EstadoJugador(), new EstadoJugador()};
+    private final EstadoPartida estadoPartida = new EstadoPartida();
     private boolean hayEstado;
     private int ultimaSecuenciaEstado;
 
@@ -166,7 +168,7 @@ public final class ClienteSala implements AutoCloseable {
     }
 
     private void atenderEstado(ByteBuffer paquete) {
-        if (fase != Fase.JUGANDO || paquete.remaining() < 4 + 2 * CodecEstado.BYTES) {
+        if (fase != Fase.JUGANDO || paquete.remaining() < 4 + 2 * CodecEstado.BYTES + CodecEstado.BYTES_PARTIDA) {
             return;
         }
         int secuencia = paquete.getInt();
@@ -176,11 +178,18 @@ public final class ClienteSala implements AutoCloseable {
         // Se lee primero a objetos de paso: si el segundo estado estuviera mal, no se pisa tampoco el primero.
         EstadoJugador uno = new EstadoJugador();
         EstadoJugador dos = new EstadoJugador();
-        if (!CodecEstado.leer(paquete, uno) || !CodecEstado.leer(paquete, dos)) {
+        EstadoPartida partida = new EstadoPartida();
+        if (!CodecEstado.leer(paquete, uno) || !CodecEstado.leer(paquete, dos)
+            || !CodecEstado.leer(paquete, partida)) {
             return;
         }
         copiar(uno, estados[0]);
         copiar(dos, estados[1]);
+        estadoPartida.fase = partida.fase;
+        estadoPartida.numeroRonda = partida.numeroRonda;
+        estadoPartida.rondasGanadasUno = partida.rondasGanadasUno;
+        estadoPartida.rondasGanadasDos = partida.rondasGanadasDos;
+        estadoPartida.ganadorDeLaRonda = partida.ganadorDeLaRonda;
         hayEstado = true;
         ultimaSecuenciaEstado = secuencia;
         ultimoMensaje = reloj.getAsLong();
@@ -301,6 +310,11 @@ public final class ClienteSala implements AutoCloseable {
     /** Verdadero cuando llego al menos un estado de la partida. */
     public boolean hayEstado() {
         return hayEstado;
+    }
+
+    /** Como va la partida: etapa, ronda, marcador y quien gano la ultima ronda. */
+    public EstadoPartida getEstadoPartida() {
+        return estadoPartida;
     }
 
     /** El ultimo estado recibido del jugador {@code indice} (0 anfitrion, 1 cliente). */

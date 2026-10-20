@@ -26,6 +26,8 @@ import com.et35.technomortemarena.entrada.EntradaLocal;
 import com.et35.technomortemarena.entrada.FuenteEntrada;
 import com.et35.technomortemarena.mundo.Arena;
 import com.et35.technomortemarena.mundo.Bloque;
+import com.et35.technomortemarena.partida.EstadoPartida;
+import com.et35.technomortemarena.partida.RondasPartida;
 import com.et35.technomortemarena.red.ClienteSala;
 import com.et35.technomortemarena.red.ServidorSala;
 
@@ -37,6 +39,12 @@ import com.et35.technomortemarena.red.ServidorSala;
  * controla un solo jugador (con el mismo teclado y mouse): el anfitrion ({@link ServidorSala}) simula
  * toda la partida y le manda el estado al cliente ({@link ClienteSala}), que solo manda sus teclas y
  * dibuja lo que recibe. En red la pausa no frena la simulacion: es solo un menu encima.
+ *
+ * <p>En red es una partida al mejor de 5 rondas: el anfitrion lleva la cuenta ({@link RondasPartida}) y
+ * le manda el estado al cliente. Cuando un duelista cae termina la ronda, hay una pausa breve con el
+ * cartel de resultado y la proxima arranca con los dos de vuelta en sus spawns. El primero en ganar 3
+ * rondas se lleva la partida y aparece un cartel de victoria con revancha. En empate la ronda se
+ * vuelve a jugar sin sumar nada. El HUD muestra las vidas de cada uno y el marcador.
  *
  * <p>ESC abre el menu de pausa encima de la ronda, con opciones para volver al menu principal, a la
  * seleccion de mapa o cerrar el juego.
@@ -81,6 +89,23 @@ public class PantallaArena extends ScreenAdapter {
         "ESTOCADA: CLIC",
     };
 
+    /** Vidas con las que arranca cada duelista en cada ronda. */
+    private static final int VIDAS_INICIALES = 3;
+
+    /**
+     * Escalas del HUD: el cartel de ronda y el marcador van arriba al centro, y las vidas de cada
+     * duelista a los costados del centro. Las vidas no van en las esquinas porque ahi esta el cartel
+     * de controles y se pisarian.
+     */
+    private static final float ESCALA_RONDA_HUD = 1.2f;
+    private static final float ESCALA_MARCADOR_HUD = 1.8f;
+    private static final float MARGEN_HUD = 18f;
+    private static final float TAMANO_VIDA = 20f;
+    private static final float SEPARACION_VIDA = 8f;
+    /** Distancia desde el centro de la pantalla hasta la primera vida de cada duelista. */
+    private static final float SEPARACION_VIDAS_DEL_CENTRO = 70f;
+    private static final Color COLOR_VIDA_PERDIDA = new Color(0.25f, 0.25f, 0.28f, 1f);
+
     /** Segundos que tarda en reaparecer el blanco del modo de prueba despues de caer. */
     private static final float REAPARICION_BLANCO = 2f;
 
@@ -114,6 +139,9 @@ public class PantallaArena extends ScreenAdapter {
     private int golpesSonados;
     private int aterrizajesSonados;
 
+    private final RondasPartida rondas = new RondasPartida();
+    private final EstadoPartida estadoPartida = new EstadoPartida();
+
     private boolean pausado;
     /** Verdadero despues de dispose(): si un boton de la pausa nos cambio de pantalla, no hay que seguir dibujando. */
     private boolean liberada;
@@ -124,10 +152,15 @@ public class PantallaArena extends ScreenAdapter {
     /** Color y rectangulo de trabajo: evitan crear objetos nuevos en cada fotograma del cartel. */
     private final Color colorAux = new Color();
     private final Rectangle rectAux = new Rectangle();
-    private final Rectangle botonSeguir = new Rectangle(330f, 320f, 300f, 50f);
+    private final Rectangle botonSeguir = new Rectangle(330f, 390f, 300f, 50f);
+    private final Rectangle botonReiniciarRonda = new Rectangle(330f, 320f, 300f, 50f);
     private final Rectangle botonMenu = new Rectangle(330f, 250f, 300f, 50f);
     private final Rectangle botonSeleccion = new Rectangle(330f, 180f, 300f, 50f);
     private final Rectangle botonSalir = new Rectangle(330f, 110f, 300f, 50f);
+    /** Cartel de victoria: revancha en el mismo mapa o salida hacia otro menu. */
+    private final Rectangle botonRevancha = new Rectangle(330f, 250f, 300f, 50f);
+    private final Rectangle botonGanadorSeleccion = new Rectangle(330f, 180f, 300f, 50f);
+    private final Rectangle botonGanadorMenu = new Rectangle(330f, 110f, 300f, 50f);
 
     public PantallaArena(RecursosGraficos recursos, RecursosAudio audio, Arena arena) {
         this(recursos, audio, arena, () -> new PantallaArena(recursos, audio, arena));
@@ -190,15 +223,15 @@ public class PantallaArena extends ScreenAdapter {
         }
         if (cliente != null) {
             // Copias que solo se dibujan: el anfitrion les manda el estado.
-            jugadorUno = new Jugador(FuenteEntrada.NINGUNA, spawnUno.x, spawnUno.y, true, TINTE_UNO, 3);
-            jugadorDos = new Jugador(FuenteEntrada.NINGUNA, spawnDos.x, spawnDos.y, false, TINTE_DOS, 3);
+            jugadorUno = new Jugador(FuenteEntrada.NINGUNA, spawnUno.x, spawnUno.y, true, TINTE_UNO, VIDAS_INICIALES);
+            jugadorDos = new Jugador(FuenteEntrada.NINGUNA, spawnDos.x, spawnDos.y, false, TINTE_DOS, VIDAS_INICIALES);
         } else {
-            jugadorUno = new Jugador(entradaLocal, spawnUno.x, spawnUno.y, true, TINTE_UNO, 3);
+            jugadorUno = new Jugador(entradaLocal, spawnUno.x, spawnUno.y, true, TINTE_UNO, VIDAS_INICIALES);
             if (servidor == null) {
                 jugadorDos = nuevoBlanco();
             } else {
                 jugadorDos = servidor.clienteListo()
-                    ? new Jugador(servidor.getEntradaRemota(), spawnDos.x, spawnDos.y, false, TINTE_DOS, 3)
+                    ? new Jugador(servidor.getEntradaRemota(), spawnDos.x, spawnDos.y, false, TINTE_DOS, VIDAS_INICIALES)
                     : null;
                 if (fantasma == null) {
                     fantasma = new Jugador(FuenteEntrada.NINGUNA, -100000f, -100000f, false, TINTE_DOS, 1);
@@ -212,14 +245,20 @@ public class PantallaArena extends ScreenAdapter {
 
     /** El blanco del modo de prueba: un jugador que no se mueve, no apunta y no tiene espada. */
     private Jugador nuevoBlanco() {
-        Jugador blanco = new Jugador(FuenteEntrada.NINGUNA, spawnDos.x, spawnDos.y, false, TINTE_DOS, 3);
+        Jugador blanco = new Jugador(FuenteEntrada.NINGUNA, spawnDos.x, spawnDos.y, false, TINTE_DOS, VIDAS_INICIALES);
         blanco.setDesarmado(true);
         return blanco;
     }
 
     @Override
     public void render(float delta) {
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
+        // ESC pausa solo mientras la ronda esta en juego: entre rondas y en el cartel de victoria los
+        // carteles tienen sus propios botones, y superponer dos menues solo confunde.
+        boolean enRonda = rondas.getFase() == RondasPartida.Fase.RONDA;
+        if (!enRonda) {
+            pausado = false;
+        }
+        if (enRonda && Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             pausado = !pausado;
             if (pausado && !enRed()) {
                 // Al pausar deja de correr la simulacion, asi que el bucle quedaria sonando para
@@ -228,8 +267,9 @@ public class PantallaArena extends ScreenAdapter {
             }
         }
         if (pausado) {
-            atenderPausa();
-            if (liberada) {
+            if (atenderPausa()) {
+                // Se cambio de pantalla: cambiarA() ya libero el SpriteBatch de esta instancia, asi que
+                // hay que cortar el fotograma sin dibujar, o se dibujaria con recursos ya liberados.
                 return;
             }
             if (!enRed()) {
@@ -238,9 +278,12 @@ public class PantallaArena extends ScreenAdapter {
             }
             // En red el mundo sigue corriendo por debajo del menu de pausa.
         }
+        if (rondas.getFase() == RondasPartida.Fase.GANADOR && atenderGanador()) {
+            return;
+        }
         if (servidor != null && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
-            // El anfitrion reinicia la ronda en el lugar: la sala y el socket siguen abiertos.
-            armarJugadores();
+            // El anfitrion reinicia la partida en el lugar: la sala y el socket siguen abiertos.
+            reiniciarPartida();
         } else if (!enRed() && Gdx.input.isKeyJustPressed(Input.Keys.R)) {
             // Cortar aca todo el fotograma: reiniciar() ya libero el SpriteBatch de esta instancia
             // (ver dispose() mas abajo), asi que llamar a dibujar() despues crashearia.
@@ -279,7 +322,7 @@ public class PantallaArena extends ScreenAdapter {
 
     /** Cuando el blanco cae, espera un momento y reaparece entero en su lugar. */
     private void reaparecerBlanco(float paso) {
-        if (jugadorDos.estaVivo()) {
+        if (jugadorDos.isVivo()) {
             return;
         }
         tiempoBlancoCaido += paso;
@@ -290,25 +333,44 @@ public class PantallaArena extends ScreenAdapter {
     }
 
     /**
-     * El anfitrion simula todo: su jugador con el teclado y el mouse y el del cliente con la entrada que llega
-     * por la red. Despues le manda el estado resultante al cliente.
+     * El anfitrion simula todo: su jugador con el teclado y el mouse y el del cliente con la entrada
+     * que llega por la red. Lleva la cuenta de las rondas y le manda el estado resultante al cliente.
      */
     private void actualizarComoAnfitrion(float paso) {
         servidor.sondear();
         if (servidor.consumirDesconexion()) {
+            // Si el cliente se va, la partida en curso termina: queda esperando a otro.
             jugadorDos = null;
+            rondas.reiniciar();
+            jugadorUno.reiniciar(spawnUno.x, spawnUno.y, true);
         }
         if (jugadorDos == null && servidor.clienteListo()) {
-            jugadorDos = new Jugador(servidor.getEntradaRemota(), spawnDos.x, spawnDos.y, false, TINTE_DOS, 3);
+            // Llega alguien: empieza una partida nueva desde cero.
+            rondas.reiniciar();
+            jugadorUno.reiniciar(spawnUno.x, spawnUno.y, true);
+            jugadorDos = new Jugador(servidor.getEntradaRemota(), spawnDos.x, spawnDos.y, false, TINTE_DOS, VIDAS_INICIALES);
         }
-        entradaLocal.setActiva(!pausado);
-        jugadorUno.actualizar(paso, arena, jugadorDos != null ? jugadorDos : fantasma);
-        if (jugadorDos != null) {
+        boolean enRonda = rondas.getFase() == RondasPartida.Fase.RONDA;
+        entradaLocal.setActiva(!pausado && enRonda);
+        if (jugadorDos == null) {
+            jugadorUno.actualizar(paso, arena, fantasma);
+            return;
+        }
+        if (enRonda) {
+            jugadorUno.actualizar(paso, arena, jugadorDos);
             jugadorDos.actualizar(paso, arena, jugadorUno);
-            jugadorUno.exportar(estadoUno);
-            jugadorDos.exportar(estadoDos);
-            servidor.enviarEstado(estadoUno, estadoDos);
+        } else {
+            // La simulacion queda congelada mientras se lee el resultado: se descartan las acciones
+            // que el cliente haya mandado en el medio, para que no se disparen al arrancar la ronda.
+            servidor.getEntradaRemota().leer(entradaAux);
         }
+        if (rondas.actualizar(paso, jugadorUno.isVivo(), jugadorDos.isVivo())) {
+            reiniciarRondaActual();
+        }
+        jugadorUno.exportar(estadoUno);
+        jugadorDos.exportar(estadoDos);
+        rondas.exportar(estadoPartida);
+        servidor.enviarEstado(estadoUno, estadoDos, estadoPartida);
     }
 
     /**
@@ -321,12 +383,13 @@ public class PantallaArena extends ScreenAdapter {
             cambiarA(new PantallaMultijugador(recursos, audio, cliente.getMotivo()));
             return;
         }
-        entradaLocal.setActiva(!pausado);
+        entradaLocal.setActiva(!pausado && rondas.getFase() == RondasPartida.Fase.RONDA);
         entradaLocal.leer(entradaAux);
         cliente.enviarEntrada(entradaAux);
         if (cliente.hayEstado()) {
             jugadorUno.importar(cliente.getEstado(0));
             jugadorDos.importar(cliente.getEstado(1));
+            rondas.importar(cliente.getEstadoPartida());
         }
     }
 
@@ -338,7 +401,9 @@ public class PantallaArena extends ScreenAdapter {
      * marca con una bandera valida solo en el fotograma en que ocurren.
      */
     private void actualizarSonidos() {
-        boolean corriendo = jugadorUno.estaCorriendo() || (jugadorDos != null && jugadorDos.estaCorriendo());
+        // Entre rondas el mundo esta congelado: el bucle de correr no puede seguir sonando.
+        boolean corriendo = rondas.getFase() == RondasPartida.Fase.RONDA
+            && (jugadorUno.estaCorriendo() || (jugadorDos != null && jugadorDos.estaCorriendo()));
         if (corriendo && !suenaCorrer) {
             audio.correr.loop(VOLUMEN_CORRER);
             suenaCorrer = true;
@@ -368,22 +433,80 @@ public class PantallaArena extends ScreenAdapter {
         }
     }
 
-    private void atenderPausa() {
+    /** El cliente no puede reiniciar nada: lo decide el anfitrion. En el modo de prueba y como anfitrion si. */
+    private boolean puedeReiniciar() {
+        return cliente == null;
+    }
+
+    /**
+     * Atiende los clics del menu de pausa.
+     *
+     * @return {@code true} si se cambio de pantalla: en ese caso hay que cortar el fotograma sin
+     *         dibujar, porque {@link #cambiarA} ya libero el {@code SpriteBatch} de esta instancia.
+     */
+    private boolean atenderPausa() {
         if (!Gdx.input.justTouched()) {
-            return;
+            return false;
         }
         Vector2 mouse = viewportUi.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
         if (botonSeguir.contains(mouse)) {
             pausado = false;
+        } else if (puedeReiniciar() && botonReiniciarRonda.contains(mouse)) {
+            // Reinicia solo la ronda actual: el marcador de la partida no se toca.
+            pausado = false;
+            reiniciarRondaActual();
         } else if (botonMenu.contains(mouse)) {
             cambiarA(new PantallaMenu(recursos, audio));
+            return true;
         } else if (botonSeleccion.contains(mouse)) {
             cambiarA(enRed()
                 ? new PantallaMultijugador(recursos, audio, "")
                 : new PantallaSeleccionMapa(recursos, audio));
+            return true;
         } else if (botonSalir.contains(mouse)) {
             Gdx.app.exit();
         }
+        return false;
+    }
+
+    /**
+     * Atiende los botones del cartel de victoria: revancha en el mismo mapa (solo quien lleva la
+     * partida) o salida hacia otro menu.
+     *
+     * @return {@code true} si se cambio de pantalla, con el mismo criterio que {@link #atenderPausa}
+     */
+    private boolean atenderGanador() {
+        if (!Gdx.input.justTouched()) {
+            return false;
+        }
+        Vector2 mouse = viewportUi.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
+        if (puedeReiniciar() && botonRevancha.contains(mouse)) {
+            reiniciarPartida();
+        } else if (botonGanadorSeleccion.contains(mouse)) {
+            cambiarA(enRed()
+                ? new PantallaMultijugador(recursos, audio, "")
+                : new PantallaSeleccionMapa(recursos, audio));
+            return true;
+        } else if (botonGanadorMenu.contains(mouse)) {
+            cambiarA(new PantallaMenu(recursos, audio));
+            return true;
+        }
+        return false;
+    }
+
+    /** Devuelve a los dos duelistas a su spawn, con las vidas completas, para jugar la ronda que sigue. */
+    private void reiniciarRondaActual() {
+        jugadorUno.reiniciar(spawnUno.x, spawnUno.y, true);
+        if (jugadorDos != null) {
+            jugadorDos.reiniciar(spawnDos.x, spawnDos.y, false);
+        }
+        tiempoBlancoCaido = 0f;
+    }
+
+    /** Empieza una partida nueva: marcador en cero, ronda 1 y todos de vuelta en su lugar. */
+    private void reiniciarPartida() {
+        rondas.reiniciar();
+        armarJugadores();
     }
 
     /**
@@ -418,11 +541,108 @@ public class PantallaArena extends ScreenAdapter {
         batch.end();
 
         dibujarAyudaControles();
+        dibujarHud();
         dibujarEstadoRed();
+
+        if (rondas.getFase() == RondasPartida.Fase.ENTRE_RONDAS) {
+            dibujarEntreRondas();
+        } else if (rondas.getFase() == RondasPartida.Fase.GANADOR) {
+            dibujarGanador();
+        }
 
         if (pausado) {
             dibujarPausa();
         }
+    }
+
+    /**
+     * Dibuja las vidas de cada duelista a los costados del centro y, en red, el numero de ronda y el
+     * marcador de la partida arriba al centro, con el viewport de interfaz para que queden ancladas a
+     * la pantalla.
+     */
+    private void dibujarHud() {
+        viewportUi.apply();
+        batch.setProjectionMatrix(viewportUi.getCamera().combined);
+        batch.begin();
+        float centro = ANCHO_UI / 2f;
+        dibujarVidas(jugadorUno, TINTE_UNO, centro - SEPARACION_VIDAS_DEL_CENTRO, true);
+        if (jugadorDos != null) {
+            dibujarVidas(jugadorDos, TINTE_DOS, centro + SEPARACION_VIDAS_DEL_CENTRO, false);
+            if (enRed()) {
+                dibujarTextoCentrado("RONDA " + rondas.getNumeroRonda(), ESCALA_RONDA_HUD, ALTO_UI - MARGEN_HUD, Color.WHITE);
+                String marcadorTexto = rondas.getRondasGanadasUno() + " - " + rondas.getRondasGanadasDos();
+                dibujarTextoCentrado(marcadorTexto, ESCALA_MARCADOR_HUD, ALTO_UI - MARGEN_HUD - 20f, Color.WHITE);
+            }
+        }
+        batch.end();
+    }
+
+    /**
+     * Fila de vidas de un duelista: un cuadrado de su color por vida restante y otro apagado por cada
+     * vida perdida. La fila empieza pegada al centro y crece hacia afuera.
+     *
+     * @param haciaLaIzquierda la fila crece hacia la izquierda desde {@code xAncla} (el Jugador 1); si no,
+     *                         hacia la derecha (el Jugador 2)
+     */
+    private void dibujarVidas(Jugador jugador, Color tinte, float xAncla, boolean haciaLaIzquierda) {
+        // Un duelista muerto muestra las vidas vacias: el contador es "lo que queda por perder".
+        int vidas = jugador.isVivo() ? jugador.getVida() : 0;
+        for (int i = 0; i < VIDAS_INICIALES; i++) {
+            float x = haciaLaIzquierda
+                ? xAncla - TAMANO_VIDA - i * (TAMANO_VIDA + SEPARACION_VIDA)
+                : xAncla + i * (TAMANO_VIDA + SEPARACION_VIDA);
+            rectAux.set(x, ALTO_UI - MARGEN_HUD - TAMANO_VIDA, TAMANO_VIDA, TAMANO_VIDA);
+            ui.rectangulo(batch, rectAux, i < vidas ? tinte : COLOR_VIDA_PERDIDA);
+        }
+    }
+
+    /** Cartel entre rondas: quien gano la ronda que acaba de terminar, o el aviso de empate. */
+    private void dibujarEntreRondas() {
+        viewportUi.apply();
+        batch.setProjectionMatrix(viewportUi.getCamera().combined);
+        batch.begin();
+        ui.rectangulo(batch, rectAux.set(0f, 0f, ANCHO_UI, ALTO_UI), VELO_PAUSA);
+        int ganador = rondas.getGanadorDeLaRonda();
+        if (ganador < 0) {
+            dibujarTextoCentrado("EMPATE", 3f, 400f, Color.WHITE);
+            dibujarTextoCentrado("LA RONDA SE VUELVE A JUGAR", 1.4f, 350f, Color.LIGHT_GRAY);
+        } else {
+            boolean ganoElUno = ganador == 0;
+            dibujarTextoCentrado(ganoElUno ? "JUGADOR 1" : "JUGADOR 2", 3f, 400f,
+                ganoElUno ? TINTE_UNO : TINTE_DOS);
+            dibujarTextoCentrado("GANA LA RONDA " + rondas.getNumeroRonda(), 1.4f, 350f, Color.WHITE);
+        }
+        dibujarTextoCentrado("PROXIMA RONDA...", 1.1f, 260f, Color.LIGHT_GRAY);
+        batch.end();
+    }
+
+    /** Cartel de victoria: anuncia al ganador de la partida y ofrece revancha (al anfitrion) o salir. */
+    private void dibujarGanador() {
+        viewportUi.apply();
+        batch.setProjectionMatrix(viewportUi.getCamera().combined);
+        Vector2 mouse = viewportUi.unproject(new Vector2(Gdx.input.getX(), Gdx.input.getY()));
+        boolean ganoElUno = rondas.ganoJugadorUno();
+        batch.begin();
+        ui.rectangulo(batch, rectAux.set(0f, 0f, ANCHO_UI, ALTO_UI), VELO_PAUSA);
+        dibujarTextoCentrado("GANADOR DE LA PARTIDA", 1.6f, 440f, Color.WHITE);
+        dibujarTextoCentrado(ganoElUno ? "JUGADOR 1" : "JUGADOR 2", 3f, 380f,
+            ganoElUno ? TINTE_UNO : TINTE_DOS);
+        dibujarTextoCentrado(rondas.getRondasGanadasUno() + " - " + rondas.getRondasGanadasDos(),
+            1.6f, 325f, Color.WHITE);
+        if (puedeReiniciar()) {
+            ui.boton(batch, botonRevancha, botonRevancha.contains(mouse), "REVANCHA", 1.5f);
+        } else {
+            dibujarTextoCentrado("LA REVANCHA LA PIDE EL ANFITRION", 1.1f, 285f, Color.LIGHT_GRAY);
+        }
+        ui.boton(batch, botonGanadorSeleccion, botonGanadorSeleccion.contains(mouse),
+            enRed() ? "SALIR DE LA SALA" : "SELECCION DE MAPA", 1.3f);
+        ui.boton(batch, botonGanadorMenu, botonGanadorMenu.contains(mouse), "MENU PRINCIPAL", 1.3f);
+        batch.end();
+    }
+
+    /** Linea de texto centrada en el ancho de la interfaz, para el HUD y los carteles de resultado. */
+    private void dibujarTextoCentrado(String texto, float escala, float yArriba, Color color) {
+        ui.texto(batch, texto, (ANCHO_UI - ui.anchoTexto(texto, escala)) / 2f, yArriba, escala, color);
     }
 
     /**
@@ -530,12 +750,16 @@ public class PantallaArena extends ScreenAdapter {
         batch.begin();
         ui.rectangulo(batch, new Rectangle(0f, 0f, ANCHO_UI, ALTO_UI), VELO_PAUSA);
         ui.boton(batch, botonSeguir, botonSeguir.contains(mouse), "SEGUIR", 1.5f);
+        if (puedeReiniciar()) {
+            ui.boton(batch, botonReiniciarRonda, botonReiniciarRonda.contains(mouse), "REINICIAR RONDA", 1.3f);
+        }
         ui.boton(batch, botonMenu, botonMenu.contains(mouse), "MENU PRINCIPAL", 1.3f);
-        ui.boton(batch, botonSeleccion, botonSeleccion.contains(mouse), enRed() ? "SALIR DE LA SALA" : "SELECCION DE MAPA", 1.3f);
+        ui.boton(batch, botonSeleccion, botonSeleccion.contains(mouse),
+            enRed() ? "SALIR DE LA SALA" : "SELECCION DE MAPA", 1.3f);
         ui.boton(batch, botonSalir, botonSalir.contains(mouse), "SALIR", 1.5f);
         String titulo = "PAUSA";
         float x = (ANCHO_UI - ui.anchoTexto(titulo, 2.5f)) / 2f;
-        ui.texto(batch, titulo, x, 470f, 2.5f, Color.WHITE);
+        ui.texto(batch, titulo, x, 468f, 2.5f, Color.WHITE);
         batch.end();
     }
 
