@@ -7,6 +7,9 @@ El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y e
 
 ## [No publicado]
 
+
+### Añadido
+- Verificación local de los tests del módulo core sin errores (todos los tests pasan).
 ### AÃ±adido
 
 - Estructura de partida al mejor de 5 rondas (por PR de @juarezmateo, integrada con el combate con mouse
